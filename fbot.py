@@ -41,5 +41,21 @@ def chat_handler(message):
     # Radhe Radhe logic
     elif "radhe radhe" in text:
         bot.reply_to(message, "Radhe Radhe! 🙏 Sab badhiya?")
+import os
+from flask import Flask
+import threading
 
-bot.infinity_polling()
+server = Flask(__name__)
+@server.route("/")
+def home():
+    return "Bot is Live!"
+
+def run():
+    # Render ke liye port 10000 set karna zaroori hai
+    port = int(os.environ.get("PORT", 10000))
+    server.run(host="0.0.0.0", port=port)
+
+if __name__ == "__main__":
+    # Server aur Bot dono saath chalenge
+    threading.Thread(target=run).start()
+    bot.infinity_polling()
