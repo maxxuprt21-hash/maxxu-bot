@@ -1,61 +1,72 @@
 import telebot
 import random
 import time
-
-# Aapka Token yahan hai
-API_TOKEN = '8506856522:AAE-f6Fn9cNMVxIGVsLUMm8LUR-GTfvaYGg'
-bot = telebot.TeleBot(API_TOKEN)
-
-# 1. Welcome Message (Jab koi naya banda aaye)
-@bot.message_handler(content_types=['new_chat_members'])
-def welcome_user(message):
-    for user in message.new_chat_members:
-        bot.reply_to(message, f"Swagat hai {user.first_name} bhai! Maxxu ke ilake mein shanti banaaye rakhein. 🔥")
-
-# 2. Smart Chat Logic (Jo aapne manga tha)
-@bot.message_handler(func=lambda msg: True)
-def chat_handler(message):
-    text = message.text.lower()
-    sender = message.from_user.first_name
-
-    # Kaha hai tu/Kaha ho ka jawab
-    if "kaha hai" in text or "kaha ho" in text:
-        bot.send_chat_action(message.chat.id, 'typing')
-        time.sleep(1)
-        bot.reply_to(message, f"Yahin hoon {sender} bhai 😊 Bol kya kaam hai?")
-
-    # So gaya kya ka jawab
-    elif "so gya" in text or "so gaya" in text:
-        bot.send_chat_action(message.chat.id, 'typing')
-        time.sleep(1)
-        bot.reply_to(message, "Nahi re, Maxxu hamesha jaag raha hai! 😈")
-
-    # Tera naam kya hai
-    elif "tera naam" in text or "tera name" in text:
-        bot.reply_to(message, "Mera naam Maxxu hai, par tera bhai hoon! 😎")
-
-    # Ek kaam hai ka jawab
-    elif "ek kam hai" in text or "ek kaam h" in text:
-        bot.reply_to(message, f"Haan {sender}, bol na kya kaam hai? Sharma mat! 😉")
-
-    # Radhe Radhe logic
-    elif "radhe radhe" in text:
-        bot.reply_to(message, "Radhe Radhe! 🙏 Sab badhiya?")
 import os
 from flask import Flask
 import threading
 
+# 1. Bot Token Setup
+API_TOKEN = '8506856522:AAE-f6Fn9cNMVxIGVsLUMm8LUR-GTfvaYGg' #
+bot = telebot.TeleBot(API_TOKEN)
+
+# 2. Flask Server (Render active rakhne ke liye)
 server = Flask(__name__)
 @server.route("/")
 def home():
-    return "Bot is Live!"
+    return "Maxxu Bot is Active with Gali Mode!"
 
 def run():
-    # Render ke liye port 10000 set karna zaroori hai
     port = int(os.environ.get("PORT", 10000))
     server.run(host="0.0.0.0", port=port)
 
+# 3. Gali List (Normal Wali)
+galiyan = [
+    "Abe gadhe ki aulad!", "Shakal dekhi hai apni?", "Oye bewakoof insaan!", 
+    "Dimag ghar chhod ke aaya hai kya?", "Nalayak kahin ke!", "Bade aaye chaudhary!", 
+    "Abbe oye namune!", "Tere se na ho payega beta."
+]
+
+# 4. Human Chat Logic + Gali Spam
+@bot.message_handler(func=lambda message: True)
+def human_chat(message):
+    text = message.text.lower()
+    user_name = message.from_user.first_name
+    user_id = message.from_user.id
+
+    # AGAR AAPNE BOLA "ise suna kuch"
+    if "ise suna kuch" in text:
+        # Check karna ki ye kisi message ka reply hai ya nahi
+        if message.reply_to_message:
+            target_user = message.reply_to_message.from_user
+            target_mention = f"[{target_user.first_name}](tg://user?id={target_user.id})"
+            
+            bot.send_message(message.chat.id, f"Theek hai bhai, abhi iski bajata hoon! 😈")
+            
+            # 20 baar tag karke spam karna
+            for i in range(20):
+                gali = random.choice(galiyan)
+                bot.send_message(message.chat.id, f"{target_mention} {gali}", parse_mode="Markdown")
+                time.sleep(0.5) # Thoda delay taaki Telegram ban na kare
+            return
+        else:
+            bot.reply_to(message, "Bhai, pehle kisi ke message par 'Reply' toh karo jise sunana hai!")
+            return
+
+    # Normal Chat Logic
+    bot.send_chat_action(message.chat.id, 'typing')
+    time.sleep(1) 
+
+    if "hi" in text or "hello" in text:
+        reply = random.choice([f"Aur {user_name} bhai, kya haal chaal?", "Hi bhai, kya chal raha hai?"])
+    elif "kaha hai" in text:
+        reply = "Yahin hoon ⚡M A X X U💀..!..✍️bhai 😊 Bol kya kaam hai?" #
+    else:
+        # Fallback: English Sorry Line
+        reply = "Sorry, I didn't understand. Could you please say that again?"
+
+    bot.reply_to(message, reply)
+
+# Start Everything
 if __name__ == "__main__":
-    # Server aur Bot dono saath chalenge
     threading.Thread(target=run).start()
     bot.infinity_polling()
