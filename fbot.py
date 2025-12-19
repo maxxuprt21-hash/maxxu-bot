@@ -4,69 +4,87 @@ import time
 import os
 from flask import Flask
 import threading
+import re
 
-# 1. Bot Token Setup
-API_TOKEN = '8506856522:AAE-f6Fn9cNMVxIGVsLUMm8LUR-GTfvaYGg' #
+# 1. Setup
+API_TOKEN = '8506856522:AAE-f6Fn9cNMVxIGVsLUMm8LUR-GTfvaYGg'
+MAXXU_ID = 6363297042 
 bot = telebot.TeleBot(API_TOKEN)
 
-# 2. Flask Server (Render active rakhne ke liye)
+# 2. Flask
 server = Flask(__name__)
 @server.route("/")
-def home():
-    return "Maxxu Bot is Active with Gali Mode!"
+def home(): return "Maxxu Ultimate Bot is Live!"
 
 def run():
     port = int(os.environ.get("PORT", 10000))
     server.run(host="0.0.0.0", port=port)
 
-# 3. Gali List (Normal Wali)
-galiyan = [
-    "Abe gadhe ki aulad!", "Shakal dekhi hai apni?", "Oye bewakoof insaan!", 
-    "Dimag ghar chhod ke aaya hai kya?", "Nalayak kahin ke!", "Bade aaye chaudhary!", 
-    "Abbe oye namune!", "Tere se na ho payega beta."
+# 3. Data Lists
+nrml_gali = ["Abe oye namune!", "Dimag bech khaya hai?", "Nalayak kahin ke!", "Oye bewakoof!", "Shakal dekhi hai apni?"]
+shayari = [
+    "Dosti ka rishta sabse pyara hai, tu mera yaar sabse nyara hai. ❤️",
+    "Hum dosti mein jaan de dete hain, dushmani mein pehchan mita dete hain. 🔥",
+    "Zindagi mein doston ka saath zaruri hai, warna har khushi adhuri hai. ✨"
 ]
 
-# 4. Human Chat Logic + Gali Spam
+# 4. Anti-Link & Welcome Handler
+@bot.message_handler(content_types=['new_chat_members'])
+def welcome(message):
+    for user in message.new_chat_members:
+        # Welcome Sticker (Ek pyara sa welcome sticker)
+        bot.send_sticker(message.chat.id, "CAACAgIAAxkBAAEL_mxl_...") 
+        bot.reply_to(message, f"Swagat hai {user.first_name} bhai! Maxxu ke ilake mein rules follow karna. 🔥")
+
+# 5. Full Message Handler
 @bot.message_handler(func=lambda message: True)
-def human_chat(message):
+def handle_all(message):
     text = message.text.lower()
-    user_name = message.from_user.first_name
-    user_id = message.from_user.id
+    sender_id = message.from_user.id
+    chat_id = message.chat.id
 
-    # AGAR AAPNE BOLA "ise suna kuch"
-    if "ise suna kuch" in text:
-        # Check karna ki ye kisi message ka reply hai ya nahi
-        if message.reply_to_message:
-            target_user = message.reply_to_message.from_user
-            target_mention = f"[{target_user.first_name}](tg://user?id={target_user.id})"
-            
-            bot.send_message(message.chat.id, f"Theek hai bhai, abhi iski bajata hoon! 😈")
-            
-            # 20 baar tag karke spam karna
+    # --- 1. ANTI-LINK SYSTEM ---
+    if re.search(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', text):
+        if sender_id != MAXXU_ID: # Maxxu links bhej sakta hai
+            bot.delete_message(chat_id, message.message_id)
+            bot.send_message(chat_id, f"⚠️ Oye {message.from_user.first_name}, group mein link bhejna mana hai!")
+            return
+
+    # --- 2. ADMIN ONLY COMMANDS (Maxxu Only) ---
+    if sender_id == MAXXU_ID:
+        if "ise suna kuch" in text and message.reply_to_message:
+            target = message.reply_to_message.from_user
+            m = bot.send_message(chat_id, "Ji bhai, abhi iski bajata hoon! 😈")
+            spam_msgs = []
             for i in range(20):
-                gali = random.choice(galiyan)
-                bot.send_message(message.chat.id, f"{target_mention} {gali}", parse_mode="Markdown")
-                time.sleep(0.5) # Thoda delay taaki Telegram ban na kare
-            return
-        else:
-            bot.reply_to(message, "Bhai, pehle kisi ke message par 'Reply' toh karo jise sunana hai!")
+                sent = bot.send_message(chat_id, f"[{target.first_name}](tg://user?id={target.id}) {random.choice(nrml_gali)}", parse_mode="Markdown")
+                spam_msgs.append(sent.message_id)
+                time.sleep(0.4)
+            
+            # --- 3. AUTO-DELETE (60 seconds baad clean-up) ---
+            time.sleep(60)
+            for msg_id in spam_msgs:
+                try: bot.delete_message(chat_id, msg_id)
+                except: pass
+            bot.delete_message(chat_id, m.message_id)
             return
 
-    # Normal Chat Logic
-    bot.send_chat_action(message.chat.id, 'typing')
-    time.sleep(1) 
+        elif "bas kar" in text:
+            bot.reply_to(message, "Thik hai bhai, shant hoon. Agli baar bata dena! 😉")
+            return
 
-    if "hi" in text or "hello" in text:
-        reply = random.choice([f"Aur {user_name} bhai, kya haal chaal?", "Hi bhai, kya chal raha hai?"])
+    # --- 4. ENTERTAINMENT (Sabke liye) ---
+    if "shayari suna" in text:
+        bot.reply_to(message, random.choice(shayari))
+    elif "hi" in text or "hello" in text:
+        bot.reply_to(message, f"Aur {message.from_user.first_name} bhai, kya haal?")
     elif "kaha hai" in text:
-        reply = "Yahin hoon ⚡M A X X U💀..!..✍️bhai 😊 Bol kya kaam hai?" #
+        bot.reply_to(message, "Yahin hoon ⚡M A X X U💀 bhai! Bol kya kaam hai?")
     else:
-        # Fallback: English Sorry Line
-        reply = "Sorry, I didn't understand. Could you please say that again?"
+        # Har message par response
+        bot.reply_to(message, "Sorry, I didn't understand. Could you please say that again?")
 
-    bot.reply_to(message, reply)
-
-# Start Everything
+# Start
 if __name__ == "__main__":
     threading.Thread(target=run).start()
     bot.infinity_polling()
