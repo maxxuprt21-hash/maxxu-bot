@@ -21,15 +21,18 @@ def run():
     port = int(os.environ.get("PORT", 10000))
     server.run(host="0.0.0.0", port=port)
 
-# 3. Mega Shayari List (200+ wali list)
-# (Yahan wahi 200 shayariyaan paste karna jo aapne pehle di thi)
+# 3. Mega Shayari List
 shayari_list = [
     "Teri saanson ki garmahat, mere khayalon ko bechain kar jaati hai.",
     "Tumhari smile, mere khayalon ko kapde utar deti hai.",
-    "Tumhari aankhon ka nasha, sharab se zyada gehra hai."
+    "Tumhari aankhon ka nasha, sharab se zyada gehra hai.",
+    "Tumhari baatein, dil ko dheere dheere nanga kar jaati hain.",
+    "Tum paas hoti ho, to saans bhi romantic lagti hai.",
+    "Tumhari aankhon mein doobna, meri aadat ban chuki hai."
+    # (Bhai yahan apni wo 200+ shayariyaan puri paste kar dena)
 ]
 
-nrml_gali = ["Abe oye namune!", "Dimag bech khaya hai?", "Nalayak kahin ke!"]
+nrml_gali = ["Abe oye namune!", "Dimag bech khaya hai?", "Nalayak kahin ke!", "Oye bewakoof!"]
 
 # 4. Message Handler
 @bot.message_handler(func=lambda message: True)
@@ -40,9 +43,8 @@ def handle_all(message):
     user_name = message.from_user.first_name
     mention = f"[{user_name}](tg://user?id={sender_id})"
 
-    # --- 1. ROMANTIC & MOOD COMMANDS ---
+    # --- 1. ROMANTIC, MOOD & MAXXU COMMANDS ---
     romantic_triggers = ["mood", "jaan", "baby", "love you", "love u", "shona", "maxxu"]
-    
     if any(word in text for word in romantic_triggers):
         chosen = random.choice(shayari_list)
         response = (
@@ -81,19 +83,18 @@ def handle_all(message):
 
     # --- 4. ANTI-LINK ---
     if re.search(r'http[s]?://', text) and sender_id != MAXXU_ID:
-        bot.delete_message(chat_id, message.message_id)
+        try: bot.delete_message(chat_id, message.message_id)
+        except: pass
         return
 
-    # --- 5. NORMAL REPLIES ---
-    if "shayari suna" in text:
+    # --- 5. NORMAL REPLIES (Shayari/Sayari) ---
+    if "shayari" in text or "sayari" in text:
         chosen = random.choice(shayari_list)
         bot.send_message(chat_id, f"*{chosen}*\n\n✨ Shayari acchi lage toh 'Next' likhna...\n❤️ Aur **Darling Maxxu ({MAXXU_USERNAME})** ko Thank you bolna!", parse_mode="Markdown")
-    elif "hi" in text or "hello" in text:
-        bot.reply_to(message, f"Aur {user_name} bhai, kya haal?")
-    elif "kaha hai" in text:
-        bot.reply_to(message, f"Yahin hoon **Maxxu** bhai! Bol kya kaam hai?")
-    else:
-        bot.reply_to(message, "Sorry, I didn't understand. Could you please say that again?")
+        return
+
+    # Fallback response (Sirf tab jab upar ka kuch match na ho)
+    bot.reply_to(message, "Kuch samajh nahi aaya bhai, thoda saaf bolo!")
 
 if __name__ == "__main__":
     threading.Thread(target=run).start()
