@@ -1,73 +1,69 @@
-import telebot
-import random
-import time
 import os
-from flask import Flask
-import threading
-import re
+import asyncio
+import random
+import datetime
+from telethon import TelegramClient, events
+from telethon.sessions import StringSession
 
-# 1. Setup - Darling Maxxu Special
-API_TOKEN = '8506856522:AAE-f6Fn9cNMVxIGVsLUMm8LUR-GTfvaYGg'
-MAXXU_ID = 6363297042
-MAXXU_USERNAME = "@maxxu_ig"
-bot = telebot.TeleBot(API_TOKEN)
+# ===== YOUR API DETAILS (ENVIRONMENT SE UTAYEGA) =====
+API_ID = int(os.environ.get("API_ID", "4962914"))
+API_HASH = os.environ.get("API_HASH", "0e862963853723ae6738cfd98f6ad8d1")
+STRING_SESSION = os.environ.get("STRING_SESSION") # Ye Render se uthayega
+# ====================================================
 
-# 2. Flask Server
-server = Flask(__name__)
-@server.route("/")
-def home(): return f"Maxxu ({MAXXU_USERNAME}) Bot is Live!"
+# Yahan StringSession use ho raha hai jo Render ke liye best hai
+client = TelegramClient(StringSession(STRING_SESSION), API_ID, API_HASH)
 
-def run():
-    port = int(os.environ.get("PORT", 10000))
-    server.run(host="0.0.0.0", port=port)
+STOP = False
+TAGGED = 0
+DELAY_MIN = 4
+DELAY_MAX = 9
 
-# 3. Data Lists
-nrml_gali = ["Abe oye namune!", "Dimag bech khaya hai?", "Nalayak kahin ke!", "Oye bewakoof!", "Shakal dekhi hai apni?"]
+CUTE_MESSAGES = [
+    "you bring good vibes 💖", "hope you’re smiling today 😊",
+    "you matter a lot ✨", "sending positive energy ⚡",
+    "you’re honestly amazing 🌟", "keep shining like this 🔥",
+    "just spreading some love ❤️", "you make this place better 🌈",
+    "good vibes only for you 🌸"
+]
 
-# Shayari List (Short version for test, add more later)
-shayari_list = ["Teri saanson ki garmahat...", "Aankhon se jo baat hui...", "Tera naam lete hi..."] 
+def tag_user(user):
+    return f"@{user.username}" if user.username else f"[{user.first_name}](tg://user?id={user.id})"
 
-# 4. Message Handler
-@bot.message_handler(func=lambda message: True)
-def handle_all(message):
-    try:
-        text = message.text.lower()
-        sender_id = message.from_user.id
-        chat_id = message.chat.id
-        user_name = message.from_user.first_name
-        mention = f"[{user_name}](tg://user?id={sender_id})"
+@client.on(events.NewMessage(pattern=r"\.help", outgoing=True))
+async def help_cmd(event):
+    await event.delete()
+    await event.respond("🛡️ **Userbot Commands**\n\n`.start` – Start tagging\n`.stop` – Stop tagging\n`.stats` – Show stats\n`.alive` – Check bot status")
 
-        # --- 1. ROMANTIC & MOOD ---
-        romantic_triggers = ["mood", "jaan", "baby", "love you", "love u", "shona", "maxxu"]
-        if any(word in text for word in romantic_triggers):
-            chosen = random.choice(shayari_list)
-            response = f"Oye {mention}, suniye...\n\n*{chosen}*\n\n✨ 'Next' likho agli ke liye!\n❤️ **Darling Maxxu**"
-            bot.send_message(chat_id, response, parse_mode="Markdown")
-            return
+@client.on(events.NewMessage(pattern=r"\.alive", outgoing=True))
+async def alive_cmd(event):
+    await event.edit("✅ **Maxxu Bot is Online!**")
 
-        # --- 2. NEXT ---
-        elif text == "next":
-            chosen = random.choice(shayari_list)
-            bot.send_message(chat_id, f"*{chosen}*\n\n🙌 Sab **Darling Maxxu** ka karam hai!", parse_mode="Markdown")
-            return
+@client.on(events.NewMessage(pattern=r"\.start", outgoing=True))
+async def start_tag(event):
+    global STOP, TAGGED
+    STOP = False
+    TAGGED = 0
+    await event.delete()
+    async for user in client.iter_participants(event.chat_id):
+        if STOP: break
+        if user.bot or user.deleted: continue
+        mention = tag_user(user)
+        message = f"{mention} {random.choice(CUTE_MESSAGES)}"
+        await client.send_message(event.chat_id, message)
+        TAGGED += 1
+        await asyncio.sleep(random.randint(DELAY_MIN, DELAY_MAX))
 
-        # --- 3. ADMIN GALI (Only for @maxxu_ig) ---
-        if sender_id == MAXXU_ID:
-            if "ise suna kuch" in text and message.reply_to_message:
-                target = message.reply_to_message.from_user
-                for i in range(10): # Range kam rakhi hai test ke liye
-                    bot.send_message(chat_id, f"[{target.first_name}](tg://user?id={target.id}) {random.choice(nrml_gali)}", parse_mode="Markdown")
-                    time.sleep(0.5)
-                return
+@client.on(events.NewMessage(pattern=r"\.stop", outgoing=True))
+async def stop_tag(event):
+    global STOP
+    STOP = True
+    await event.edit("🛑 **Tagging Stopped!**")
 
-        # --- 4. SHAYARI TRIGGER ---
-        if "shayari" in text or "sayari" in text:
-            chosen = random.choice(shayari_list)
-            bot.send_message(chat_id, f"*{chosen}*\n\n❤️ **Darling Maxxu (@maxxu_ig)**", parse_mode="Markdown")
+@client.on(events.NewMessage(pattern=r"\.stats", outgoing=True))
+async def stats_cmd(event):
+    await event.edit(f"📊 **Tagged users so far:** {TAGGED}")
 
-    except Exception as e:
-        print(f"Error: {e}")
-
-if __name__ == "__main__":
-    threading.Thread(target=run).start()
-    bot.infinity_polling()
+print("🚀 Userbot running...")
+client.start()
+client.run_until_disconnected()
